@@ -9,7 +9,7 @@ from .protocol import RedisProtocol, Script
 from .nodemanager import NodeManager
 from .crc import crc16
 
-__all__ = ('Pool', )
+__all__ = ('Pool',)
 
 
 class Pool:
@@ -25,6 +25,7 @@ class Pool:
         pool = yield from Pool.create(host='localhost', port=6379, poolsize=10)
         result = yield from connection.set('key', 'value')
     """
+
     @classmethod
     @asyncio.coroutine
     def create(cls, nodes, *, password=None, db=0,
@@ -70,11 +71,11 @@ class Pool:
             self._connections[node] = []
 
             for i in range(poolsize):
-                connection = yield from Connection\
+                connection = yield from Connection \
                     .create(host=self._host, port=self._port,
-                                password=password, db=db, encoder=encoder,
-                                auto_reconnect=auto_reconnect, loop=loop,
-                                protocol_class=protocol_class)
+                            password=password, db=db, encoder=encoder,
+                            auto_reconnect=auto_reconnect, loop=loop,
+                            protocol_class=protocol_class)
                 self._connections[node].append(connection)
 
         return self
@@ -93,7 +94,7 @@ class Pool:
         Return how many protocols are in use.
         """
         raise NotImplementedError
-        return sum([ 1 for c in self._connections if c.protocol.in_use ])
+        return sum([1 for c in self._connections if c.protocol.in_use])
 
     @property
     def connections_connected(self):
@@ -101,7 +102,7 @@ class Pool:
         The amount of open TCP connections.
         """
         raise NotImplementedError
-        return sum([ 1 for c in self._connections if c.protocol.is_connected ])
+        return sum([1 for c in self._connections if c.protocol.is_connected])
 
     def _get_free_connection(self, host):
         """
@@ -135,6 +136,7 @@ class Pool:
         Proxy to a protocol. (This will choose a protocol instance that's not
         busy in a blocking request or transaction.)
         """
+
         def get_key(*args, debug=False):
 
             is_read = False
@@ -144,8 +146,17 @@ class Pool:
             if not args:
                 raise Exception('You must specify an argument (FIXME)')
 
+            # handle multi-key operations
             key = args[0]
-            host = self._get_host_by_key(key, is_read=is_read)
+            host = None
+            if type(key) is list:
+                for k in key:
+                    tmp = self._get_host_by_key(k, is_read=is_read)
+                    if host and tmp != host:
+                        raise Exception('Multi-key operation is not possible because of different target hosts.')
+                    host = tmp
+            else:
+                host = self._get_host_by_key(key, is_read=is_read)
             connection = self._get_free_connection(host)
 
             if is_read:
@@ -159,8 +170,9 @@ class Pool:
                 result = yield from getattr(connection, name)(*args)
                 return result
             else:
-                raise NoAvailableConnectionsInPoolError('No available connections in the pool: size=%s, in_use=%s, connected=%s' % (
-                                    self.poolsize, self.connections_in_use, self.connections_connected))
+                raise NoAvailableConnectionsInPoolError(
+                    'No available connections in the pool: size=%s, in_use=%s, connected=%s' % (
+                        self.poolsize, self.connections_in_use, self.connections_connected))
 
         return get_key
 
@@ -168,7 +180,7 @@ class Pool:
     # execute on any available connection in the pool.
     @asyncio.coroutine
     @wraps(RedisProtocol.register_script)
-    def register_script(self, script:str) -> Script:
+    def register_script(self, script: str) -> Script:
         # Call register_script from the Protocol.
         script = yield from self.__getattr__('register_script')(script)
         assert isinstance(script, Script)
