@@ -247,7 +247,7 @@ class EvalScriptReply:
         Coroutine that returns a Python representation of the script's return
         value.
         """
-        from asyncio_redis.protocol import MultiBulkReply
+        from .protocol import MultiBulkReply
 
         @asyncio.coroutine
         def decode(obj):
